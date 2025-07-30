@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,17 +39,19 @@ namespace ShortenURLService.Controllers
         [HttpPost]
         public async Task<ActionResult<URL>> PostURL(URL url)
         {
-            // Generate shortened URL if not provided
-            if (string.IsNullOrEmpty(url.ShortenedUrl))
+            // The service already handles duplicate checking and database operations
+            string shortCode = await _shortenService.ShortenUrlAsync(url.OriginalUrl);
+            
+            // Get the URL record (either existing or newly created by the service)
+            var urlRecord = await _context.URL.FirstOrDefaultAsync(u => u.ShortenedUrl == shortCode);
+            
+            if (urlRecord != null)
             {
-                url.ShortenedUrl = await _shortenService.ShortenUrlAsync(url.OriginalUrl);
+                return Ok(urlRecord);
             }
-
-            url.CreatedAt = DateTime.UtcNow;
-            _context.URL.Add(url);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetURL", new { id = url.Id }, url);
+            
+            // This should not happen if the service works correctly
+            return BadRequest("Error creating shortened URL");
         }
 
         // Redirection Endpoint
